@@ -23,9 +23,15 @@ export function useJobTracker() {
 
     if (savedRecords) {
       try {
-        setRecords(JSON.parse(savedRecords));
+        const parsed = JSON.parse(savedRecords);
+        if (Array.isArray(parsed)) {
+          setRecords(parsed);
+        } else {
+          setRecords([]);
+        }
       } catch (e) {
         console.error('Failed to parse records', e);
+        setRecords([]);
       }
     }
 
@@ -103,12 +109,19 @@ export function useJobTracker() {
     let weekApplies = 0;
     let monthApplies = 0;
 
-    records.forEach(r => {
+    const safeRecords = Array.isArray(records) ? records : [];
+
+    safeRecords.forEach(r => {
+      const ts = r.timestamp || Date.now();
       if (r.type === 'apply') {
         totalApplies++;
-        if (isToday(r.timestamp)) todayApplies++;
-        if (isThisWeek(r.timestamp, { weekStartsOn: 1 })) weekApplies++;
-        if (isThisMonth(r.timestamp)) monthApplies++;
+        try {
+          if (isToday(ts)) todayApplies++;
+          if (isThisWeek(ts, { weekStartsOn: 1 })) weekApplies++;
+          if (isThisMonth(ts)) monthApplies++;
+        } catch (e) {
+          console.error('Date parsing error', e);
+        }
       } else if (r.type === 'reject') {
         totalRejects++;
       }
@@ -129,12 +142,20 @@ export function useJobTracker() {
   // Chart Data
   const chartData = useMemo(() => {
     const now = new Date();
+    const safeRecords = Array.isArray(records) ? records : [];
     
     // Daily (Last 7 days)
     const dailyData = Array.from({ length: 7 }).map((_, i) => {
       const d = subDays(now, 6 - i);
       const dateStr = format(d, 'MM-dd');
-      const count = records.filter(r => r.type === 'apply' && format(r.timestamp, 'MM-dd') === dateStr).length;
+      const count = safeRecords.filter(r => {
+        if (r.type !== 'apply') return false;
+        try {
+          return format(r.timestamp || Date.now(), 'MM-dd') === dateStr;
+        } catch (e) {
+          return false;
+        }
+      }).length;
       return { name: dateStr, value: count };
     });
 
@@ -142,7 +163,15 @@ export function useJobTracker() {
     const weeklyData = Array.from({ length: 4 }).map((_, i) => {
       const d = subWeeks(now, 3 - i);
       const weekStr = `W${format(d, 'w')}`;
-      const count = records.filter(r => r.type === 'apply' && format(r.timestamp, 'w') === format(d, 'w') && format(r.timestamp, 'yyyy') === format(d, 'yyyy')).length;
+      const count = safeRecords.filter(r => {
+        if (r.type !== 'apply') return false;
+        try {
+          const ts = r.timestamp || Date.now();
+          return format(ts, 'w') === format(d, 'w') && format(ts, 'yyyy') === format(d, 'yyyy');
+        } catch (e) {
+          return false;
+        }
+      }).length;
       return { name: weekStr, value: count };
     });
 
@@ -150,7 +179,15 @@ export function useJobTracker() {
     const monthlyData = Array.from({ length: 6 }).map((_, i) => {
       const d = subMonths(now, 5 - i);
       const monthStr = format(d, 'MM月');
-      const count = records.filter(r => r.type === 'apply' && format(r.timestamp, 'MM') === format(d, 'MM') && format(r.timestamp, 'yyyy') === format(d, 'yyyy')).length;
+      const count = safeRecords.filter(r => {
+        if (r.type !== 'apply') return false;
+        try {
+          const ts = r.timestamp || Date.now();
+          return format(ts, 'MM') === format(d, 'MM') && format(ts, 'yyyy') === format(d, 'yyyy');
+        } catch (e) {
+          return false;
+        }
+      }).length;
       return { name: monthStr, value: count };
     });
 
@@ -160,10 +197,11 @@ export function useJobTracker() {
   // Check for duplicates
   const checkDuplicate = (company: string, jobTitle: string) => {
     if (!company && !jobTitle) return false;
-    return records.some(r => 
+    const safeRecords = Array.isArray(records) ? records : [];
+    return safeRecords.some(r => 
       r.type === 'apply' && 
-      r.company.toLowerCase() === company.toLowerCase() && 
-      r.jobTitle.toLowerCase() === jobTitle.toLowerCase()
+      (r.company || '').toLowerCase() === (company || '').toLowerCase() && 
+      (r.jobTitle || '').toLowerCase() === (jobTitle || '').toLowerCase()
     );
   };
 

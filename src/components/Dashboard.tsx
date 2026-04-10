@@ -36,9 +36,17 @@ export default function Dashboard() {
 
   if (!isLoaded) return null;
 
+  const safeConfirm = (msg: string) => {
+    try {
+      return window.confirm(msg);
+    } catch (e) {
+      return true;
+    }
+  };
+
   const handleAdd = (type: 'apply' | 'reject') => {
     if (type === 'apply' && checkDuplicate(company, jobTitle)) {
-      const confirm = window.confirm('该公司和岗位历史上已记录过，是否继续记录？');
+      const confirm = safeConfirm('该公司和岗位历史上已记录过，是否继续记录？');
       if (!confirm) return;
     }
 
@@ -88,7 +96,7 @@ export default function Dashboard() {
   };
 
   const handleDelete = (id: string) => {
-    if (window.confirm('确定要删除这条记录吗？')) {
+    if (safeConfirm('确定要删除这条记录吗？')) {
       deleteRecord(id);
       toast.success('记录已删除');
     }
@@ -119,21 +127,22 @@ export default function Dashboard() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const filteredRecords = records.filter(r => {
+  const filteredRecords = (Array.isArray(records) ? records : []).filter(r => {
     const matchType = filterType === 'all' || r.type === filterType;
-    const matchSearch = r.company.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                        r.jobTitle.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchSearch = (r.company || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                        (r.jobTitle || '').toLowerCase().includes(searchTerm.toLowerCase());
     
     let matchTime = true;
     const now = Date.now();
+    const timestamp = r.timestamp || now;
     if (filterTime === 'today') {
-      matchTime = new Date(r.timestamp).toDateString() === new Date(now).toDateString();
+      matchTime = new Date(timestamp).toDateString() === new Date(now).toDateString();
     } else if (filterTime === 'week') {
       const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
-      matchTime = r.timestamp >= weekAgo;
+      matchTime = timestamp >= weekAgo;
     } else if (filterTime === 'month') {
       const monthAgo = now - 30 * 24 * 60 * 60 * 1000;
-      matchTime = r.timestamp >= monthAgo;
+      matchTime = timestamp >= monthAgo;
     }
 
     return matchType && matchSearch && matchTime;
@@ -358,9 +367,9 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="p-6 flex-1 flex flex-col">
               <div className="mb-6 text-sm text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                {chartTab === 'daily' && `近 7 天共投递 ${chartData.daily.reduce((a, b) => a + b.value, 0)} 份`}
-                {chartTab === 'weekly' && `近 4 周共投递 ${chartData.weekly.reduce((a, b) => a + b.value, 0)} 份`}
-                {chartTab === 'monthly' && `近 6 个月共投递 ${chartData.monthly.reduce((a, b) => a + b.value, 0)} 份`}
+                {chartTab === 'daily' && `近 7 天共投递 ${chartData?.daily?.reduce((a, b) => a + b.value, 0) || 0} 份`}
+                {chartTab === 'weekly' && `近 4 周共投递 ${chartData?.weekly?.reduce((a, b) => a + b.value, 0) || 0} 份`}
+                {chartTab === 'monthly' && `近 6 个月共投递 ${chartData?.monthly?.reduce((a, b) => a + b.value, 0) || 0} 份`}
               </div>
               <div className="flex-1 min-h-[250px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -459,10 +468,7 @@ export default function Dashboard() {
                           {format(record.timestamp, 'MM-dd HH:mm')}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={cn(
-                            "px-2 py-1 rounded-full text-xs font-medium",
-                            record.type === 'apply' ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-600"
-                          )}>
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${record.type === 'apply' ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-600"}`}>
                             {record.type === 'apply' ? '投递' : '拒信'}
                           </span>
                         </td>
@@ -545,7 +551,7 @@ export default function Dashboard() {
               <Download className="w-3 h-3 mr-1.5" /> 导出 CSV
             </Button>
             <Button variant="ghost" size="sm" className="h-8 text-xs text-red-500 hover:bg-red-50" onClick={() => {
-              if (window.confirm('警告：此操作将清空所有本地数据且不可恢复！确定要清空吗？')) {
+              if (safeConfirm('警告：此操作将清空所有本地数据且不可恢复！确定要清空吗？')) {
                 clearAll();
                 toast.success('数据已清空');
               }
