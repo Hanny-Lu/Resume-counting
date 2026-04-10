@@ -178,7 +178,7 @@ export function useJobTracker() {
     // Monthly (Last 6 months)
     const monthlyData = Array.from({ length: 6 }).map((_, i) => {
       const d = subMonths(now, 5 - i);
-      const monthStr = format(d, 'MM月');
+      const monthStr = format(d, 'MMM');
       const count = safeRecords.filter(r => {
         if (r.type !== 'apply') return false;
         try {

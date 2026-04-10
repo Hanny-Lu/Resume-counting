@@ -1,6 +1,5 @@
 import React, { useState, useRef } from 'react';
 import { format } from 'date-fns';
-import { zhCN } from 'date-fns/locale';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
 } from 'recharts';
@@ -46,12 +45,12 @@ export default function Dashboard() {
 
   const handleAdd = (type: 'apply' | 'reject') => {
     if (type === 'apply' && checkDuplicate(company, jobTitle)) {
-      const confirm = safeConfirm('该公司和岗位历史上已记录过，是否继续记录？');
+      const confirm = safeConfirm('This company and position have been recorded before. Continue?');
       if (!confirm) return;
     }
 
     addRecord(type, company, jobTitle, notes);
-    toast.success(type === 'apply' ? '投递记录已添加' : '拒信记录已添加');
+    toast.success(type === 'apply' ? 'Application recorded' : 'Rejection recorded');
 
     if (settings.autoClear) {
       setCompany('');
@@ -63,23 +62,23 @@ export default function Dashboard() {
   const handleUndo = () => {
     const undone = undoLast();
     if (undone) {
-      toast.info(`已撤销: ${undone.type === 'apply' ? '投递' : '拒信'} - ${undone.company || '未知公司'}`);
+      toast.info(`Undid: ${undone.type === 'apply' ? 'Application' : 'Rejection'} - ${undone.company || 'Unknown Company'}`);
     } else {
-      toast.error('没有可撤销的记录');
+      toast.error('No records to undo');
     }
   };
 
   const handleQuickAdd = (type: 'apply' | 'reject') => {
     addRecord(type, '', '', '');
-    toast.success(type === 'apply' ? '投递记录 +1' : '拒信记录 +1');
+    toast.success(type === 'apply' ? 'Application +1' : 'Rejection +1');
   };
 
   const handleUndoType = (type: 'apply' | 'reject') => {
     const undone = undoLastOfType(type);
     if (undone) {
-      toast.info(`已撤销最近一次${type === 'apply' ? '投递' : '拒信'}`);
+      toast.info(`Undid the latest ${type === 'apply' ? 'application' : 'rejection'}`);
     } else {
-      toast.error(`没有可撤销的${type === 'apply' ? '投递' : '拒信'}记录`);
+      toast.error(`No ${type === 'apply' ? 'application' : 'rejection'} records to undo`);
     }
   };
 
@@ -89,16 +88,16 @@ export default function Dashboard() {
       setCompany(lastApply.company);
       setJobTitle(lastApply.jobTitle);
       setNotes(lastApply.notes);
-      toast.success('已填入上一条记录');
+      toast.success('Filled with previous record');
     } else {
-      toast.error('没有历史投递记录');
+      toast.error('No previous application records');
     }
   };
 
   const handleDelete = (id: string) => {
-    if (safeConfirm('确定要删除这条记录吗？')) {
+    if (safeConfirm('Are you sure you want to delete this record?')) {
       deleteRecord(id);
-      toast.success('记录已删除');
+      toast.success('Record deleted');
     }
   };
 
@@ -110,7 +109,7 @@ export default function Dashboard() {
         notes: editingRecord.notes,
       });
       setEditingRecord(null);
-      toast.success('记录已更新');
+      toast.success('Record updated');
     }
   };
 
@@ -120,9 +119,9 @@ export default function Dashboard() {
     try {
       const imported = await importFromCSV(file);
       setRecords(prev => [...imported, ...prev]);
-      toast.success(`成功导入 ${imported.length} 条记录`);
+      toast.success(`Successfully imported ${imported.length} records`);
     } catch (err) {
-      toast.error('导入失败，请检查文件格式');
+      toast.error('Import failed, please check file format');
     }
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -158,24 +157,24 @@ export default function Dashboard() {
       {editingRecord && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6 animate-in fade-in zoom-in duration-200">
-            <h3 className="text-lg font-semibold mb-4">编辑记录</h3>
+            <h3 className="text-lg font-semibold mb-4">Edit Record</h3>
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-medium text-slate-500 mb-1 block">公司名称</label>
+                <label className="text-xs font-medium text-slate-500 mb-1 block">Company Name</label>
                 <Input 
                   value={editingRecord.company} 
                   onChange={e => setEditingRecord({...editingRecord, company: e.target.value})}
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-slate-500 mb-1 block">岗位名称</label>
+                <label className="text-xs font-medium text-slate-500 mb-1 block">Job Title</label>
                 <Input 
                   value={editingRecord.jobTitle} 
                   onChange={e => setEditingRecord({...editingRecord, jobTitle: e.target.value})}
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-slate-500 mb-1 block">备注</label>
+                <label className="text-xs font-medium text-slate-500 mb-1 block">Notes</label>
                 <Input 
                   value={editingRecord.notes} 
                   onChange={e => setEditingRecord({...editingRecord, notes: e.target.value})}
@@ -183,8 +182,8 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">
-              <Button variant="outline" onClick={() => setEditingRecord(null)}>取消</Button>
-              <Button onClick={handleSaveEdit}>保存修改</Button>
+              <Button variant="outline" onClick={() => setEditingRecord(null)}>Cancel</Button>
+              <Button onClick={handleSaveEdit}>Save Changes</Button>
             </div>
           </div>
         </div>
@@ -195,15 +194,15 @@ export default function Dashboard() {
         {/* Header */}
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">求职投递统计助手</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Job Application Tracker</h1>
             <p className="text-sm text-slate-500 mt-1">
-              {format(new Date(), 'yyyy年MM月dd日 EEEE', { locale: zhCN })}
+              {format(new Date(), 'EEEE, MMM dd, yyyy')}
             </p>
           </div>
           
           <div className="flex items-center gap-4 bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
             <div className="flex flex-col">
-              <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">今日目标</span>
+              <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">Daily Goal</span>
               <span className="text-sm font-semibold">{stats.todayApplies} / {settings.dailyGoal}</span>
             </div>
             <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -228,14 +227,14 @@ export default function Dashboard() {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2 text-blue-100">
                   <Briefcase className="w-5 h-5" />
-                  <span className="font-medium">累计投递</span>
+                  <span className="font-medium">Total Applies</span>
                 </div>
                 <button 
                   onClick={(e) => { e.stopPropagation(); handleUndoType('apply'); }}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity text-blue-100 hover:text-white flex items-center gap-1 text-xs bg-blue-800/40 hover:bg-blue-800/60 px-2 py-1 rounded"
-                  title="撤销最近一次投递"
+                  className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-blue-100 hover:text-white flex items-center gap-1 text-xs bg-blue-800/40 hover:bg-blue-800/60 px-2 py-1 rounded"
+                  title="Undo last application"
                 >
-                  <RotateCcw className="w-3 h-3" /> 撤销
+                  <RotateCcw className="w-3 h-3" /> Undo
                 </button>
               </div>
               <div className="text-4xl font-bold">{stats.totalApplies}</div>
@@ -250,33 +249,33 @@ export default function Dashboard() {
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2 text-slate-300">
                   <XCircle className="w-5 h-5" />
-                  <span className="font-medium">累计拒信</span>
+                  <span className="font-medium">Total Rejects</span>
                 </div>
                 <button 
                   onClick={(e) => { e.stopPropagation(); handleUndoType('reject'); }}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 hover:text-white flex items-center gap-1 text-xs bg-slate-700/50 hover:bg-slate-700/80 px-2 py-1 rounded"
-                  title="撤销最近一次拒信"
+                  className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-slate-300 hover:text-white flex items-center gap-1 text-xs bg-slate-700/50 hover:bg-slate-700/80 px-2 py-1 rounded"
+                  title="Undo last rejection"
                 >
-                  <RotateCcw className="w-3 h-3" /> 撤销
+                  <RotateCcw className="w-3 h-3" /> Undo
                 </button>
               </div>
               <div className="flex items-end gap-3">
                 <div className="text-4xl font-bold">{stats.totalRejects}</div>
-                <div className="text-sm text-slate-400 mb-1">拒信率 {stats.rejectRate}</div>
+                <div className="text-sm text-slate-400 mb-1">Rejection Rate {stats.rejectRate}</div>
               </div>
             </CardContent>
           </Card>
 
           <Card className="col-span-1">
             <CardContent className="p-4 flex flex-col justify-center h-full">
-              <span className="text-xs text-slate-500 font-medium mb-1">今日投递</span>
+              <span className="text-xs text-slate-500 font-medium mb-1">Today's Applies</span>
               <span className="text-2xl font-semibold text-slate-900">{stats.todayApplies}</span>
             </CardContent>
           </Card>
           
           <Card className="col-span-1">
             <CardContent className="p-4 flex flex-col justify-center h-full">
-              <span className="text-xs text-slate-500 font-medium mb-1">本周投递</span>
+              <span className="text-xs text-slate-500 font-medium mb-1">This Week's Applies</span>
               <span className="text-2xl font-semibold text-slate-900">{stats.weekApplies}</span>
             </CardContent>
           </Card>
@@ -288,31 +287,31 @@ export default function Dashboard() {
             <CardHeader className="pb-4 border-b border-slate-100">
               <CardTitle className="text-lg flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-blue-500" />
-                快捷录入
+                Quick Entry
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-4">
               <div className="space-y-3">
                 <div>
-                  <label className="text-xs font-medium text-slate-500 mb-1 block">公司名称</label>
+                  <label className="text-xs font-medium text-slate-500 mb-1 block">Company Name</label>
                   <Input 
-                    placeholder="例如：腾讯、字节跳动..." 
+                    placeholder="e.g., Google, Meta..." 
                     value={company} 
                     onChange={e => setCompany(e.target.value)}
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-slate-500 mb-1 block">岗位名称</label>
+                  <label className="text-xs font-medium text-slate-500 mb-1 block">Job Title</label>
                   <Input 
-                    placeholder="例如：前端开发工程师..." 
+                    placeholder="e.g., Frontend Engineer..." 
                     value={jobTitle} 
                     onChange={e => setJobTitle(e.target.value)}
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-slate-500 mb-1 block">备注 (可选)</label>
+                  <label className="text-xs font-medium text-slate-500 mb-1 block">Notes (Optional)</label>
                   <Input 
-                    placeholder="例如：Boss直投、内推..." 
+                    placeholder="e.g., Referral, LinkedIn..." 
                     value={notes} 
                     onChange={e => setNotes(e.target.value)}
                   />
@@ -325,7 +324,7 @@ export default function Dashboard() {
                   onClick={() => handleAdd('apply')}
                 >
                   <Briefcase className="w-5 h-5 mr-2" />
-                  投递 +1
+                  Apply +1
                 </Button>
                 <Button 
                   variant="outline" 
@@ -333,16 +332,16 @@ export default function Dashboard() {
                   onClick={() => handleAdd('reject')}
                 >
                   <XCircle className="w-5 h-5 mr-2 text-slate-400" />
-                  拒信 +1
+                  Reject +1
                 </Button>
               </div>
 
               <div className="flex items-center justify-between pt-4 border-t border-slate-100">
                 <Button variant="ghost" size="sm" className="text-slate-500" onClick={handleReuseLast}>
-                  <Copy className="w-4 h-4 mr-1.5" /> 复用上一条
+                  <Copy className="w-4 h-4 mr-1.5" /> Reuse Last
                 </Button>
                 <Button variant="ghost" size="sm" className="text-slate-500" onClick={handleUndo}>
-                  <RotateCcw className="w-4 h-4 mr-1.5" /> 撤销操作
+                  <RotateCcw className="w-4 h-4 mr-1.5" /> Undo Action
                 </Button>
               </div>
             </CardContent>
@@ -354,22 +353,22 @@ export default function Dashboard() {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Calendar className="w-5 h-5 text-slate-500" />
-                  投递趋势
+                  Application Trends
                 </CardTitle>
                 <Tabs value={chartTab} onValueChange={setChartTab} className="w-auto">
                   <TabsList>
-                    <TabsTrigger value="daily" contextValue={chartTab}>日</TabsTrigger>
-                    <TabsTrigger value="weekly" contextValue={chartTab}>周</TabsTrigger>
-                    <TabsTrigger value="monthly" contextValue={chartTab}>月</TabsTrigger>
+                    <TabsTrigger value="daily" contextValue={chartTab}>Daily</TabsTrigger>
+                    <TabsTrigger value="weekly" contextValue={chartTab}>Weekly</TabsTrigger>
+                    <TabsTrigger value="monthly" contextValue={chartTab}>Monthly</TabsTrigger>
                   </TabsList>
                 </Tabs>
               </div>
             </CardHeader>
             <CardContent className="p-6 flex-1 flex flex-col">
               <div className="mb-6 text-sm text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                {chartTab === 'daily' && `近 7 天共投递 ${chartData?.daily?.reduce((a, b) => a + b.value, 0) || 0} 份`}
-                {chartTab === 'weekly' && `近 4 周共投递 ${chartData?.weekly?.reduce((a, b) => a + b.value, 0) || 0} 份`}
-                {chartTab === 'monthly' && `近 6 个月共投递 ${chartData?.monthly?.reduce((a, b) => a + b.value, 0) || 0} 份`}
+                {chartTab === 'daily' && `${chartData?.daily?.reduce((a, b) => a + b.value, 0) || 0} applications in the last 7 days`}
+                {chartTab === 'weekly' && `${chartData?.weekly?.reduce((a, b) => a + b.value, 0) || 0} applications in the last 4 weeks`}
+                {chartTab === 'monthly' && `${chartData?.monthly?.reduce((a, b) => a + b.value, 0) || 0} applications in the last 6 months`}
               </div>
               <div className="flex-1 min-h-[250px]">
                 <ResponsiveContainer width="100%" height="100%">
@@ -408,12 +407,12 @@ export default function Dashboard() {
         <Card className="shadow-sm border-slate-200">
           <CardHeader className="border-b border-slate-100 pb-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <CardTitle className="text-lg">历史记录</CardTitle>
+              <CardTitle className="text-lg">History</CardTitle>
               <div className="flex items-center gap-2">
                 <div className="relative">
                   <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <Input 
-                    placeholder="搜索公司或岗位..." 
+                    placeholder="Search company or title..." 
                     className="pl-9 w-[200px] h-9 text-sm"
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
@@ -424,19 +423,19 @@ export default function Dashboard() {
                   value={filterTime}
                   onChange={e => setFilterTime(e.target.value as any)}
                 >
-                  <option value="all">全部时间</option>
-                  <option value="today">今天</option>
-                  <option value="week">近7天</option>
-                  <option value="month">近30天</option>
+                  <option value="all">All Time</option>
+                  <option value="today">Today</option>
+                  <option value="week">Last 7 Days</option>
+                  <option value="month">Last 30 Days</option>
                 </select>
                 <select 
                   className="h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-slate-950"
                   value={filterType}
                   onChange={e => setFilterType(e.target.value as any)}
                 >
-                  <option value="all">全部记录</option>
-                  <option value="apply">仅投递</option>
-                  <option value="reject">仅拒信</option>
+                  <option value="all">All Records</option>
+                  <option value="apply">Applies Only</option>
+                  <option value="reject">Rejects Only</option>
                 </select>
               </div>
             </div>
@@ -446,19 +445,19 @@ export default function Dashboard() {
               <table className="w-full text-sm text-left">
                 <thead className="text-xs text-slate-500 bg-slate-50 border-b border-slate-100 uppercase">
                   <tr>
-                    <th className="px-6 py-3 font-medium">时间</th>
-                    <th className="px-6 py-3 font-medium">类型</th>
-                    <th className="px-6 py-3 font-medium">公司</th>
-                    <th className="px-6 py-3 font-medium">岗位</th>
-                    <th className="px-6 py-3 font-medium">备注</th>
-                    <th className="px-6 py-3 font-medium text-right">操作</th>
+                    <th className="px-6 py-3 font-medium">Time</th>
+                    <th className="px-6 py-3 font-medium">Type</th>
+                    <th className="px-6 py-3 font-medium">Company</th>
+                    <th className="px-6 py-3 font-medium">Title</th>
+                    <th className="px-6 py-3 font-medium">Notes</th>
+                    <th className="px-6 py-3 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredRecords.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
-                        暂无记录
+                        No records found
                       </td>
                     </tr>
                   ) : (
@@ -469,7 +468,7 @@ export default function Dashboard() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 py-1 rounded-full text-xs font-medium ${record.type === 'apply' ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-600"}`}>
-                            {record.type === 'apply' ? '投递' : '拒信'}
+                            {record.type === 'apply' ? 'Apply' : 'Reject'}
                           </span>
                         </td>
                         <td className="px-6 py-4 font-medium text-slate-900">
@@ -488,7 +487,7 @@ export default function Dashboard() {
                             className="text-blue-500 hover:text-blue-600 hover:bg-blue-50 h-8 px-2"
                             onClick={() => setEditingRecord(record)}
                           >
-                            编辑
+                            Edit
                           </Button>
                           <Button 
                             variant="ghost" 
@@ -496,7 +495,7 @@ export default function Dashboard() {
                             className="text-red-500 hover:text-red-600 hover:bg-red-50 h-8 px-2"
                             onClick={() => handleDelete(record.id)}
                           >
-                            删除
+                            Delete
                           </Button>
                         </td>
                       </tr>
@@ -506,7 +505,7 @@ export default function Dashboard() {
               </table>
               {filteredRecords.length > 50 && (
                 <div className="p-4 text-center text-sm text-slate-500 border-t border-slate-100">
-                  仅显示最近 50 条记录
+                  Showing only the latest 50 records
                 </div>
               )}
             </div>
@@ -523,10 +522,10 @@ export default function Dashboard() {
                 checked={settings.autoClear}
                 onChange={e => updateSettings({ autoClear: e.target.checked })}
               />
-              录入后自动清空
+              Auto-clear after entry
             </label>
             <div className="flex items-center gap-2">
-              <span>今日目标:</span>
+              <span>Daily Goal:</span>
               <Input 
                 type="number" 
                 className="w-16 h-7 px-2 text-xs" 
@@ -545,18 +544,18 @@ export default function Dashboard() {
               onChange={handleImport}
             />
             <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => fileInputRef.current?.click()}>
-              <Upload className="w-3 h-3 mr-1.5" /> 导入 CSV
+              <Upload className="w-3 h-3 mr-1.5" /> Import CSV
             </Button>
             <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => exportToCSV(records)}>
-              <Download className="w-3 h-3 mr-1.5" /> 导出 CSV
+              <Download className="w-3 h-3 mr-1.5" /> Export CSV
             </Button>
             <Button variant="ghost" size="sm" className="h-8 text-xs text-red-500 hover:bg-red-50" onClick={() => {
-              if (safeConfirm('警告：此操作将清空所有本地数据且不可恢复！确定要清空吗？')) {
+              if (safeConfirm('Warning: This will clear all local data and cannot be undone! Are you sure?')) {
                 clearAll();
-                toast.success('数据已清空');
+                toast.success('Data cleared');
               }
             }}>
-              <Trash2 className="w-3 h-3 mr-1.5" /> 清空数据
+              <Trash2 className="w-3 h-3 mr-1.5" /> Clear Data
             </Button>
           </div>
         </div>
