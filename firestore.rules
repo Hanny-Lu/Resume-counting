@@ -1,0 +1,79 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: /users/{userId}/records
+    // Document ID: {recordId}
+    // Fields:
+    //   - id: string (required) - Unique ID
+    //   - type: string (required, enum: ['apply', 'reject', 'interview2', 'final'])
+    //   - company: string (optional)
+    //   - jobTitle: string (optional)
+    //   - notes: string (optional)
+    //   - timestamp: number (required)
+    //
+    // Document: /users/{userId}/settings/app
+    // Fields:
+    //   - autoClear: bool (required)
+    //   - dailyGoal: number (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "hannylu66@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidRecord(data) {
+      return data.keys().hasAll(['id', 'type', 'timestamp']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() < 100 &&
+             data.type in ['apply', 'reject', 'interview2', 'final'] &&
+             data.timestamp is number &&
+             (!('company' in data) || (data.company is string && data.company.size() < 200)) &&
+             (!('jobTitle' in data) || (data.jobTitle is string && data.jobTitle.size() < 200)) &&
+             (!('notes' in data) || (data.notes is string && data.notes.size() < 1000));
+    }
+
+    function isValidSettings(data) {
+      return data.keys().hasAll(['autoClear', 'dailyGoal']) &&
+             data.autoClear is bool &&
+             data.dailyGoal is number && data.dailyGoal >= 0 && data.dailyGoal < 1000;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      
+      match /records/{recordId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) && isValidRecord(request.resource.data);
+        allow update: if isOwner(userId) && isValidRecord(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      match /settings/app {
+        allow read: if isOwner(userId) || isAdmin();
+        allow write: if isOwner(userId) && isValidSettings(request.resource.data);
+      }
+    }
+  }
+}

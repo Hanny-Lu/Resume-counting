@@ -1,0 +1,42 @@
+{
+  "entities": {
+    "JobRecord": {
+      "title": "Job Record",
+      "description": "A record of a job application, rejection, or interview.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique ID of the record" },
+        "type": { 
+          "type": "string", 
+          "enum": ["apply", "reject", "interview2", "final"],
+          "description": "Type of the record" 
+        },
+        "company": { "type": "string", "description": "Company name" },
+        "jobTitle": { "type": "string", "description": "Job title" },
+        "notes": { "type": "string", "description": "Additional notes" },
+        "timestamp": { "type": "number", "description": "Time of the event" }
+      },
+      "required": ["id", "type", "timestamp"]
+    },
+    "AppSettings": {
+      "title": "App Settings",
+      "description": "User preferences for the application.",
+      "type": "object",
+      "properties": {
+        "autoClear": { "type": "boolean", "description": "Whether to clear inputs after entry" },
+        "dailyGoal": { "type": "number", "description": "Daily application goal" }
+      },
+      "required": ["autoClear", "dailyGoal"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/records/{recordId}": {
+      "schema": "JobRecord",
+      "description": "Collection of job records for a specific user."
+    },
+    "/users/{userId}/settings/app": {
+      "schema": "AppSettings",
+      "description": "Application settings for a specific user."
+    }
+  }
+}

@@ -6,7 +6,7 @@ import {
 import { 
   Briefcase, XCircle, Calendar, TrendingUp, RotateCcw, Copy, 
   Settings, Download, Upload, Trash2, CheckCircle2, AlertCircle, Search, Edit2,
-  UserCheck, Award
+  UserCheck, Award, LogIn, LogOut, User as UserIcon
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 
@@ -15,10 +15,11 @@ import { exportToCSV, importFromCSV } from '../utils/csv';
 import { Button, Input, Card, CardHeader, CardTitle, CardContent } from './ui/core';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { JobRecord, RecordType } from '../types';
+import { loginWithGoogle, logout } from '../firebase';
 
 export default function Dashboard() {
   const {
-    records, settings, stats, chartData, isLoaded,
+    records, settings, stats, chartData, isLoaded, user, isAuthReady,
     addRecord, deleteRecord, updateRecord, undoLast, undoLastOfType, clearAll, updateSettings, checkDuplicate, setRecords
   } = useJobTracker();
 
@@ -34,7 +35,46 @@ export default function Dashboard() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (!isLoaded) return null;
+  if (!isAuthReady) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="animate-pulse text-slate-400 font-medium">Initializing...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <Card className="max-w-md w-full shadow-xl border-none">
+          <CardContent className="p-8 text-center space-y-6">
+            <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mx-auto">
+              <Briefcase className="w-8 h-8" />
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-2xl font-bold text-slate-900">Job Application Tracker</h1>
+              <p className="text-slate-500">Sign in to sync your applications across all your devices and keep your data safe.</p>
+            </div>
+            <Button 
+              className="w-full h-12 text-base bg-blue-600 hover:bg-blue-700" 
+              onClick={loginWithGoogle}
+            >
+              <LogIn className="w-5 h-5 mr-2" />
+              Sign in with Google
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="animate-pulse text-slate-400 font-medium">Loading your data...</div>
+      </div>
+    );
+  }
 
   const safeConfirm = (msg: string) => {
     try {
@@ -44,13 +84,13 @@ export default function Dashboard() {
     }
   };
 
-  const handleAdd = (type: RecordType) => {
+  const handleAdd = async (type: RecordType) => {
     if (type === 'apply' && checkDuplicate(company, jobTitle)) {
       const confirm = safeConfirm('This company and position have been recorded before. Continue?');
       if (!confirm) return;
     }
 
-    addRecord(type, company, jobTitle, notes);
+    await addRecord(type, company, jobTitle, notes);
     const label = type === 'apply' ? 'Application' : 
                   type === 'reject' ? 'Rejection' :
                   type === 'interview2' ? '2nd Interview' : 'Final Interview';
@@ -63,8 +103,8 @@ export default function Dashboard() {
     }
   };
 
-  const handleUndo = () => {
-    const undone = undoLast();
+  const handleUndo = async () => {
+    const undone = await undoLast();
     if (undone) {
       const label = undone.type === 'apply' ? 'Application' : 
                     undone.type === 'reject' ? 'Rejection' :
@@ -75,16 +115,16 @@ export default function Dashboard() {
     }
   };
 
-  const handleQuickAdd = (type: RecordType) => {
-    addRecord(type, '', '', '');
+  const handleQuickAdd = async (type: RecordType) => {
+    await addRecord(type, '', '', '');
     const label = type === 'apply' ? 'Application' : 
                   type === 'reject' ? 'Rejection' :
                   type === 'interview2' ? '2nd Interview' : 'Final Interview';
     toast.success(`${label} +1`);
   };
 
-  const handleUndoType = (type: RecordType) => {
-    const undone = undoLastOfType(type);
+  const handleUndoType = async (type: RecordType) => {
+    const undone = await undoLastOfType(type);
     if (undone) {
       const label = type === 'apply' ? 'application' : 
                     type === 'reject' ? 'rejection' :
@@ -216,20 +256,41 @@ export default function Dashboard() {
             </p>
           </div>
           
-          <div className="flex items-center gap-4 bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
-            <div className="flex flex-col">
-              <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">Daily Goal</span>
-              <span className="text-sm font-semibold">{stats.todayApplies} / {settings.dailyGoal}</span>
+          <div className="flex flex-col md:flex-row md:items-center gap-4">
+            <div className="flex items-center gap-3 bg-white px-3 py-2 rounded-lg border border-slate-200 shadow-sm mr-2">
+              {user.photoURL ? (
+                <img src={user.photoURL} alt={user.displayName || ''} className="w-8 h-8 rounded-full border border-slate-100" referrerPolicy="no-referrer" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+                  <UserIcon className="w-4 h-4 text-slate-400" />
+                </div>
+              )}
+              <div className="hidden sm:flex flex-col">
+                <span className="text-xs font-semibold text-slate-900 truncate max-w-[120px]">{user.displayName}</span>
+                <button onClick={logout} className="text-[10px] text-slate-500 hover:text-red-500 font-medium text-left flex items-center gap-1">
+                  <LogOut className="w-2 h-2" /> Sign Out
+                </button>
+              </div>
+              <button onClick={logout} className="sm:hidden text-slate-400 hover:text-red-500">
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
-            <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-blue-500 transition-all duration-500" 
-                style={{ width: `${todayProgress}%` }}
-              />
+
+            <div className="flex items-center gap-4 bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm">
+              <div className="flex flex-col">
+                <span className="text-xs text-slate-500 font-medium uppercase tracking-wider">Daily Goal</span>
+                <span className="text-sm font-semibold">{stats.todayApplies} / {settings.dailyGoal}</span>
+              </div>
+              <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-blue-500 transition-all duration-500" 
+                  style={{ width: `${todayProgress}%` }}
+                />
+              </div>
+              {stats.todayApplies >= settings.dailyGoal && (
+                <CheckCircle2 className="w-5 h-5 text-green-500" />
+              )}
             </div>
-            {stats.todayApplies >= settings.dailyGoal && (
-              <CheckCircle2 className="w-5 h-5 text-green-500" />
-            )}
           </div>
         </header>
 

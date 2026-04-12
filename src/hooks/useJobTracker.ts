@@ -1,10 +1,21 @@
 import { useState, useEffect, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { 
+  collection, 
+  doc, 
+  onSnapshot, 
+  setDoc, 
+  deleteDoc, 
+  updateDoc, 
+  query, 
+  orderBy, 
+  getDoc,
+  getDocFromServer
+} from 'firebase/firestore';
+import { onAuthStateChanged, User } from 'firebase/auth';
 import { JobRecord, AppSettings, DashboardStats, RecordType } from '../types';
-import { isToday, isThisWeek, isThisMonth, startOfDay, startOfWeek, startOfMonth, format, subDays, eachDayOfInterval, subWeeks, subMonths } from 'date-fns';
-
-const STORAGE_KEY_RECORDS = 'job_tracker_records';
-const STORAGE_KEY_SETTINGS = 'job_tracker_settings';
+import { isToday, isThisWeek, isThisMonth, format, subDays, subWeeks, subMonths } from 'date-fns';
+import { db, auth, handleFirestoreError, OperationType } from '../firebase';
 
 const defaultSettings: AppSettings = {
   autoClear: true,
@@ -15,90 +26,154 @@ export function useJobTracker() {
   const [records, setRecords] = useState<JobRecord[]>([]);
   const [settings, setSettings] = useState<AppSettings>(defaultSettings);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
 
-  // Load from local storage
+  // Test Connection
   useEffect(() => {
-    const savedRecords = localStorage.getItem(STORAGE_KEY_RECORDS);
-    const savedSettings = localStorage.getItem(STORAGE_KEY_SETTINGS);
-
-    if (savedRecords) {
+    async function testConnection() {
       try {
-        const parsed = JSON.parse(savedRecords);
-        if (Array.isArray(parsed)) {
-          setRecords(parsed);
-        } else {
-          setRecords([]);
+        await getDocFromServer(doc(db, 'test', 'connection'));
+      } catch (error) {
+        if(error instanceof Error && error.message.includes('the client is offline')) {
+          console.error("Please check your Firebase configuration. ");
         }
-      } catch (e) {
-        console.error('Failed to parse records', e);
-        setRecords([]);
       }
     }
-
-    if (savedSettings) {
-      try {
-        setSettings({ ...defaultSettings, ...JSON.parse(savedSettings) });
-      } catch (e) {
-        console.error('Failed to parse settings', e);
-      }
-    }
-    setIsLoaded(true);
+    testConnection();
   }, []);
 
-  // Save to local storage
+  // Auth Listener
   useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(records));
-      localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settings));
-    }
-  }, [records, settings, isLoaded]);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setIsAuthReady(true);
+    });
+    return () => unsubscribe();
+  }, []);
 
-  const addRecord = (type: RecordType, company: string, jobTitle: string, notes: string) => {
+  // Firestore Sync
+  useEffect(() => {
+    if (!isAuthReady) return;
+
+    if (!user) {
+      setRecords([]);
+      setSettings(defaultSettings);
+      setIsLoaded(true);
+      return;
+    }
+
+    const userPath = `users/${user.uid}`;
+    const recordsPath = `${userPath}/records`;
+    const settingsPath = `${userPath}/settings/app`;
+
+    // Sync Records
+    const q = query(collection(db, recordsPath), orderBy('timestamp', 'desc'));
+    const unsubscribeRecords = onSnapshot(q, (snapshot) => {
+      const fetchedRecords = snapshot.docs.map(doc => doc.data() as JobRecord);
+      setRecords(fetchedRecords);
+      setIsLoaded(true);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, recordsPath);
+    });
+
+    // Sync Settings
+    const unsubscribeSettings = onSnapshot(doc(db, settingsPath), (snapshot) => {
+      if (snapshot.exists()) {
+        setSettings(snapshot.data() as AppSettings);
+      } else {
+        // Initialize settings if they don't exist
+        setDoc(doc(db, settingsPath), defaultSettings).catch(e => {
+          handleFirestoreError(e, OperationType.WRITE, settingsPath);
+        });
+      }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, settingsPath);
+    });
+
+    return () => {
+      unsubscribeRecords();
+      unsubscribeSettings();
+    };
+  }, [user, isAuthReady]);
+
+  const addRecord = async (type: RecordType, company: string, jobTitle: string, notes: string) => {
+    if (!user) return null;
+
+    const id = uuidv4();
     const newRecord: JobRecord = {
-      id: uuidv4(),
+      id,
       type,
       company: company.trim(),
       jobTitle: jobTitle.trim(),
       notes: notes.trim(),
       timestamp: Date.now(),
     };
-    setRecords(prev => [newRecord, ...prev]);
-    return newRecord;
+
+    const path = `users/${user.uid}/records/${id}`;
+    try {
+      await setDoc(doc(db, path), newRecord);
+      return newRecord;
+    } catch (e) {
+      handleFirestoreError(e, OperationType.WRITE, path);
+      return null;
+    }
   };
 
-  const deleteRecord = (id: string) => {
-    setRecords(prev => prev.filter(r => r.id !== id));
+  const deleteRecord = async (id: string) => {
+    if (!user) return;
+    const path = `users/${user.uid}/records/${id}`;
+    try {
+      await deleteDoc(doc(db, path));
+    } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, path);
+    }
   };
 
-  const updateRecord = (id: string, updates: Partial<Omit<JobRecord, 'id' | 'timestamp'>>) => {
-    setRecords(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
+  const updateRecord = async (id: string, updates: Partial<Omit<JobRecord, 'id' | 'timestamp'>>) => {
+    if (!user) return;
+    const path = `users/${user.uid}/records/${id}`;
+    try {
+      await updateDoc(doc(db, path), updates);
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, path);
+    }
   };
 
-  const undoLast = () => {
+  const undoLast = async () => {
     if (records.length > 0) {
-      const lastRecordId = records[0].id; // Since we prepend new records
-      deleteRecord(lastRecordId);
-      return records[0];
+      const lastRecord = records[0];
+      await deleteRecord(lastRecord.id);
+      return lastRecord;
     }
     return null;
   };
 
-  const undoLastOfType = (type: RecordType) => {
-    const recordIndex = records.findIndex(r => r.type === type);
-    if (recordIndex !== -1) {
-      const record = records[recordIndex];
-      deleteRecord(record.id);
+  const undoLastOfType = async (type: RecordType) => {
+    const record = records.find(r => r.type === type);
+    if (record) {
+      await deleteRecord(record.id);
       return record;
     }
     return null;
   };
 
-  const clearAll = () => {
-    setRecords([]);
+  const clearAll = async () => {
+    if (!user) return;
+    // For simplicity, we'll just delete them one by one or suggest using a batch if there are many
+    // In a real app, you might want a more efficient way
+    const promises = records.map(r => deleteRecord(r.id));
+    await Promise.all(promises);
   };
 
-  const updateSettings = (updates: Partial<AppSettings>) => {
-    setSettings(prev => ({ ...prev, ...updates }));
+  const updateSettings = async (updates: Partial<AppSettings>) => {
+    if (!user) return;
+    const path = `users/${user.uid}/settings/app`;
+    try {
+      await setDoc(doc(db, path), { ...settings, ...updates });
+    } catch (e) {
+      handleFirestoreError(e, OperationType.WRITE, path);
+    }
   };
 
   // Derived Stats
@@ -219,6 +294,8 @@ export function useJobTracker() {
     stats,
     chartData,
     isLoaded,
+    user,
+    isAuthReady,
     addRecord,
     deleteRecord,
     updateRecord,
