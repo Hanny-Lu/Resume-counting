@@ -67,12 +67,13 @@ export const loginWithGoogle = async () => {
   } catch (error: any) {
     console.error('Login failed', error);
     if (error.code === 'auth/popup-blocked') {
-      throw new Error('Popup blocked by browser. Please allow popups or open the app in a new tab.');
+      throw new Error('Popup blocked by browser. Please allow popups.');
     } else if (error.code === 'auth/cancelled-popup-request') {
-      // User closed the popup or opened another one
       return null;
+    } else if (error.code === 'auth/unauthorized-domain') {
+      throw new Error('This domain is not authorized in Firebase. Please add your Vercel URL to "Authorized domains" in the Firebase Console.');
     } else {
-      throw error;
+      throw new Error(error.message || 'Login failed');
     }
   }
 };
