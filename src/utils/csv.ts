@@ -3,7 +3,9 @@ import { JobRecord } from '../types';
 
 export const exportToCSV = (records: JobRecord[]) => {
   const csv = Papa.unparse(records.map(r => ({
-    Type: r.type === 'apply' ? 'Apply' : 'Reject',
+    Type: r.type === 'apply' ? 'Apply' : 
+          r.type === 'reject' ? 'Reject' : 
+          r.type === 'interview2' ? '2nd Interview' : 'Final Interview',
     Company: r.company,
     JobTitle: r.jobTitle,
     Notes: r.notes,
@@ -32,7 +34,10 @@ export const importFromCSV = (file: File): Promise<JobRecord[]> => {
         try {
           const importedRecords: JobRecord[] = results.data.map((row: any) => ({
             id: row.ID || crypto.randomUUID(),
-            type: row.Type === 'Apply' || row.Type === 'apply' || row.Type === '投递' ? 'apply' : 'reject',
+            type: (row.Type === 'Apply' || row.Type === 'apply' || row.Type === '投递') ? 'apply' : 
+                  (row.Type === 'Reject' || row.Type === 'reject' || row.Type === '拒信') ? 'reject' :
+                  (row.Type === '2nd Interview' || row.Type === 'interview2') ? 'interview2' :
+                  (row.Type === 'Final Interview' || row.Type === 'final') ? 'final' : 'apply',
             company: row.Company || '',
             jobTitle: row.JobTitle || '',
             notes: row.Notes || '',

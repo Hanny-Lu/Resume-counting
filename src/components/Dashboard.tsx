@@ -5,7 +5,8 @@ import {
 } from 'recharts';
 import { 
   Briefcase, XCircle, Calendar, TrendingUp, RotateCcw, Copy, 
-  Settings, Download, Upload, Trash2, CheckCircle2, AlertCircle, Search, Edit2
+  Settings, Download, Upload, Trash2, CheckCircle2, AlertCircle, Search, Edit2,
+  UserCheck, Award
 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 
@@ -13,7 +14,7 @@ import { useJobTracker } from '../hooks/useJobTracker';
 import { exportToCSV, importFromCSV } from '../utils/csv';
 import { Button, Input, Card, CardHeader, CardTitle, CardContent } from './ui/core';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
-import { JobRecord } from '../types';
+import { JobRecord, RecordType } from '../types';
 
 export default function Dashboard() {
   const {
@@ -26,7 +27,7 @@ export default function Dashboard() {
   const [notes, setNotes] = useState('');
   const [chartTab, setChartTab] = useState('daily');
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'apply' | 'reject'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'apply' | 'reject' | 'interview2' | 'final'>('all');
   const [filterTime, setFilterTime] = useState<'all' | 'today' | 'week' | 'month'>('all');
   
   const [editingRecord, setEditingRecord] = useState<JobRecord | null>(null);
@@ -43,14 +44,17 @@ export default function Dashboard() {
     }
   };
 
-  const handleAdd = (type: 'apply' | 'reject') => {
+  const handleAdd = (type: RecordType) => {
     if (type === 'apply' && checkDuplicate(company, jobTitle)) {
       const confirm = safeConfirm('This company and position have been recorded before. Continue?');
       if (!confirm) return;
     }
 
     addRecord(type, company, jobTitle, notes);
-    toast.success(type === 'apply' ? 'Application recorded' : 'Rejection recorded');
+    const label = type === 'apply' ? 'Application' : 
+                  type === 'reject' ? 'Rejection' :
+                  type === 'interview2' ? '2nd Interview' : 'Final Interview';
+    toast.success(`${label} recorded`);
 
     if (settings.autoClear) {
       setCompany('');
@@ -62,23 +66,35 @@ export default function Dashboard() {
   const handleUndo = () => {
     const undone = undoLast();
     if (undone) {
-      toast.info(`Undid: ${undone.type === 'apply' ? 'Application' : 'Rejection'} - ${undone.company || 'Unknown Company'}`);
+      const label = undone.type === 'apply' ? 'Application' : 
+                    undone.type === 'reject' ? 'Rejection' :
+                    undone.type === 'interview2' ? '2nd Interview' : 'Final Interview';
+      toast.info(`Undid: ${label} - ${undone.company || 'Unknown Company'}`);
     } else {
       toast.error('No records to undo');
     }
   };
 
-  const handleQuickAdd = (type: 'apply' | 'reject') => {
+  const handleQuickAdd = (type: RecordType) => {
     addRecord(type, '', '', '');
-    toast.success(type === 'apply' ? 'Application +1' : 'Rejection +1');
+    const label = type === 'apply' ? 'Application' : 
+                  type === 'reject' ? 'Rejection' :
+                  type === 'interview2' ? '2nd Interview' : 'Final Interview';
+    toast.success(`${label} +1`);
   };
 
-  const handleUndoType = (type: 'apply' | 'reject') => {
+  const handleUndoType = (type: RecordType) => {
     const undone = undoLastOfType(type);
     if (undone) {
-      toast.info(`Undid the latest ${type === 'apply' ? 'application' : 'rejection'}`);
+      const label = type === 'apply' ? 'application' : 
+                    type === 'reject' ? 'rejection' :
+                    type === 'interview2' ? '2nd interview' : 'final interview';
+      toast.info(`Undid the latest ${label}`);
     } else {
-      toast.error(`No ${type === 'apply' ? 'application' : 'rejection'} records to undo`);
+      const label = type === 'apply' ? 'application' : 
+                    type === 'reject' ? 'rejection' :
+                    type === 'interview2' ? '2nd interview' : 'final interview';
+      toast.error(`No ${label} records to undo`);
     }
   };
 
@@ -218,7 +234,7 @@ export default function Dashboard() {
         </header>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
           <Card 
             className="col-span-2 bg-blue-600 text-white border-none cursor-pointer hover:bg-blue-700 transition-colors relative group shadow-md hover:shadow-lg"
             onClick={() => handleQuickAdd('apply')}
@@ -266,14 +282,58 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="col-span-1">
+          <Card 
+            className="col-span-2 bg-indigo-600 text-white border-none cursor-pointer hover:bg-indigo-700 transition-colors relative group shadow-md hover:shadow-lg"
+            onClick={() => handleQuickAdd('interview2')}
+          >
+            <CardContent className="p-6 flex flex-col justify-center h-full">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 text-indigo-100">
+                  <UserCheck className="w-5 h-5" />
+                  <span className="font-medium">2nd Interview</span>
+                </div>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); handleUndoType('interview2'); }}
+                  className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-indigo-100 hover:text-white flex items-center gap-1 text-xs bg-indigo-800/40 hover:bg-indigo-800/60 px-2 py-1 rounded"
+                  title="Undo last 2nd interview"
+                >
+                  <RotateCcw className="w-3 h-3" /> Undo
+                </button>
+              </div>
+              <div className="text-4xl font-bold">{stats.totalInterviews2}</div>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className="col-span-2 bg-purple-600 text-white border-none cursor-pointer hover:bg-purple-700 transition-colors relative group shadow-md hover:shadow-lg"
+            onClick={() => handleQuickAdd('final')}
+          >
+            <CardContent className="p-6 flex flex-col justify-center h-full">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 text-purple-100">
+                  <Award className="w-5 h-5" />
+                  <span className="font-medium">Final Interview</span>
+                </div>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); handleUndoType('final'); }}
+                  className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-purple-100 hover:text-white flex items-center gap-1 text-xs bg-purple-800/40 hover:bg-purple-800/60 px-2 py-1 rounded"
+                  title="Undo last final interview"
+                >
+                  <RotateCcw className="w-3 h-3" /> Undo
+                </button>
+              </div>
+              <div className="text-4xl font-bold">{stats.totalFinals}</div>
+            </CardContent>
+          </Card>
+
+          <Card className="col-span-1 md:col-span-2 lg:col-span-1">
             <CardContent className="p-4 flex flex-col justify-center h-full">
               <span className="text-xs text-slate-500 font-medium mb-1">Today's Applies</span>
               <span className="text-2xl font-semibold text-slate-900">{stats.todayApplies}</span>
             </CardContent>
           </Card>
           
-          <Card className="col-span-1">
+          <Card className="col-span-1 md:col-span-2 lg:col-span-1">
             <CardContent className="p-4 flex flex-col justify-center h-full">
               <span className="text-xs text-slate-500 font-medium mb-1">This Week's Applies</span>
               <span className="text-2xl font-semibold text-slate-900">{stats.weekApplies}</span>
@@ -319,21 +379,39 @@ export default function Dashboard() {
               </div>
 
               <div className="pt-2 flex flex-col gap-3">
-                <Button 
-                  className="w-full h-12 text-base bg-blue-600 hover:bg-blue-700" 
-                  onClick={() => handleAdd('apply')}
-                >
-                  <Briefcase className="w-5 h-5 mr-2" />
-                  Apply +1
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="w-full h-12 text-base border-slate-300 text-slate-700 hover:bg-slate-50"
-                  onClick={() => handleAdd('reject')}
-                >
-                  <XCircle className="w-5 h-5 mr-2 text-slate-400" />
-                  Reject +1
-                </Button>
+                <div className="grid grid-cols-2 gap-3">
+                  <Button 
+                    className="h-12 text-sm bg-blue-600 hover:bg-blue-700" 
+                    onClick={() => handleAdd('apply')}
+                  >
+                    <Briefcase className="w-4 h-4 mr-2" />
+                    Apply +1
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="h-12 text-sm border-slate-300 text-slate-700 hover:bg-slate-50"
+                    onClick={() => handleAdd('reject')}
+                  >
+                    <XCircle className="w-4 h-4 mr-2 text-slate-400" />
+                    Reject +1
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Button 
+                    className="h-12 text-sm bg-indigo-600 hover:bg-indigo-700" 
+                    onClick={() => handleAdd('interview2')}
+                  >
+                    <UserCheck className="w-4 h-4 mr-2" />
+                    2nd Int +1
+                  </Button>
+                  <Button 
+                    className="h-12 text-sm bg-purple-600 hover:bg-purple-700" 
+                    onClick={() => handleAdd('final')}
+                  >
+                    <Award className="w-4 h-4 mr-2" />
+                    Final +1
+                  </Button>
+                </div>
               </div>
 
               <div className="flex items-center justify-between pt-4 border-t border-slate-100">
@@ -436,6 +514,8 @@ export default function Dashboard() {
                   <option value="all">All Records</option>
                   <option value="apply">Applies Only</option>
                   <option value="reject">Rejects Only</option>
+                  <option value="interview2">2nd Interviews</option>
+                  <option value="final">Final Interviews</option>
                 </select>
               </div>
             </div>
@@ -467,8 +547,15 @@ export default function Dashboard() {
                           {format(record.timestamp, 'MM-dd HH:mm')}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${record.type === 'apply' ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-600"}`}>
-                            {record.type === 'apply' ? 'Apply' : 'Reject'}
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            record.type === 'apply' ? "bg-blue-50 text-blue-700" : 
+                            record.type === 'reject' ? "bg-slate-100 text-slate-600" :
+                            record.type === 'interview2' ? "bg-indigo-50 text-indigo-700" :
+                            "bg-purple-50 text-purple-700"
+                          }`}>
+                            {record.type === 'apply' ? 'Apply' : 
+                             record.type === 'reject' ? 'Reject' :
+                             record.type === 'interview2' ? '2nd Int' : 'Final'}
                           </span>
                         </td>
                         <td className="px-6 py-4 font-medium text-slate-900">

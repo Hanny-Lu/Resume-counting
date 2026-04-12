@@ -105,6 +105,8 @@ export function useJobTracker() {
   const stats = useMemo<DashboardStats>(() => {
     let totalApplies = 0;
     let totalRejects = 0;
+    let totalInterviews2 = 0;
+    let totalFinals = 0;
     let todayApplies = 0;
     let weekApplies = 0;
     let monthApplies = 0;
@@ -124,6 +126,10 @@ export function useJobTracker() {
         }
       } else if (r.type === 'reject') {
         totalRejects++;
+      } else if (r.type === 'interview2') {
+        totalInterviews2++;
+      } else if (r.type === 'final') {
+        totalFinals++;
       }
     });
 
@@ -132,6 +138,8 @@ export function useJobTracker() {
     return {
       totalApplies,
       totalRejects,
+      totalInterviews2,
+      totalFinals,
       todayApplies,
       weekApplies,
       monthApplies,

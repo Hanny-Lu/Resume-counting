@@ -1,4 +1,4 @@
-export type RecordType = 'apply' | 'reject';
+export type RecordType = 'apply' | 'reject' | 'interview2' | 'final';
 
 export interface JobRecord {
   id: string;
@@ -17,6 +17,8 @@ export interface AppSettings {
 export interface DashboardStats {
   totalApplies: number;
   totalRejects: number;
+  totalInterviews2: number;
+  totalFinals: number;
   todayApplies: number;
   weekApplies: number;
   monthApplies: number;
