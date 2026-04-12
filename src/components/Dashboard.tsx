@@ -43,6 +43,14 @@ export default function Dashboard() {
     );
   }
 
+  const handleLogin = async () => {
+    try {
+      await loginWithGoogle();
+    } catch (error: any) {
+      toast.error(error.message || 'Login failed. Please try again or open in a new tab.');
+    }
+  };
+
   if (!user) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
@@ -55,13 +63,18 @@ export default function Dashboard() {
               <h1 className="text-2xl font-bold text-slate-900">Job Application Tracker</h1>
               <p className="text-slate-500">Sign in to sync your applications across all your devices and keep your data safe.</p>
             </div>
-            <Button 
-              className="w-full h-12 text-base bg-blue-600 hover:bg-blue-700" 
-              onClick={loginWithGoogle}
-            >
-              <LogIn className="w-5 h-5 mr-2" />
-              Sign in with Google
-            </Button>
+            <div className="space-y-4">
+              <Button 
+                className="w-full h-12 text-base bg-blue-600 hover:bg-blue-700" 
+                onClick={handleLogin}
+              >
+                <LogIn className="w-5 h-5 mr-2" />
+                Sign in with Google
+              </Button>
+              <p className="text-xs text-slate-400">
+                If the login window doesn't appear, please check your browser's popup blocker or try opening the app in a new tab.
+              </p>
+            </div>
           </CardContent>
         </Card>
       </div>

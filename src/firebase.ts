@@ -7,6 +7,7 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 export enum OperationType {
   CREATE = 'create',
@@ -61,9 +62,18 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 
 export const loginWithGoogle = async () => {
   try {
-    await signInWithPopup(auth, googleProvider);
-  } catch (error) {
+    const result = await signInWithPopup(auth, googleProvider);
+    return result.user;
+  } catch (error: any) {
     console.error('Login failed', error);
+    if (error.code === 'auth/popup-blocked') {
+      throw new Error('Popup blocked by browser. Please allow popups or open the app in a new tab.');
+    } else if (error.code === 'auth/cancelled-popup-request') {
+      // User closed the popup or opened another one
+      return null;
+    } else {
+      throw error;
+    }
   }
 };
 
